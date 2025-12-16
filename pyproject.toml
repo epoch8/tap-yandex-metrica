@@ -1,0 +1,121 @@
+[project]
+name = "epoch8-tap-yandex-metrica"
+version = "0.0.1"
+description = "Singer tap for YandexMetrica, built with the Meltano Singer SDK."
+readme = "README.md"
+authors = [{ name = "SergeyZ06", email = "SergeyZ06@yandex.ru" }]
+keywords = [
+    "ELT",
+    "YandexMetrica",
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+license = "Apache-2.0"
+license-files = [ "LICENSE" ]
+requires-python = ">=3.10"
+dependencies = [
+    "singer-sdk~=0.53.4",
+    "requests~=2.32.3",
+    "typing-extensions>=4.5.0; python_version < '3.13'",
+    "pandas (>=2.3.3,<3.0.0)",
+]
+
+[project.optional-dependencies]
+s3 = [
+    "s3fs~=2025.10.0",
+]
+
+[project.scripts]
+# CLI declaration
+tap-yandex-metrica = 'tap_yandex_metrica.tap:TapYandexMetrica.cli'
+
+[dependency-groups]
+dev = [
+    { include-group = "test" },
+]
+test = [
+    "pytest>=9",
+    "pytest-github-actions-annotate-failures>=0.3",
+    "singer-sdk[testing]",
+]
+typing = [
+    "mypy>=1.16.0",
+    "ty>=0.0.1-alpha.16",
+    "types-requests",
+]
+[tool.hatch.build.targets.wheel]
+packages = [
+    "tap_yandex_metrica",
+]
+
+[tool.pytest]
+minversion = "9.0"
+addopts = [
+    "--durations=10",
+]
+
+[tool.mypy]
+warn_unused_configs = true
+
+[tool.ruff]
+line-length = 100
+required-version = ">=0.14"
+
+[tool.ruff.lint]
+future-annotations = true
+ignore = [
+    "COM812",  # missing-trailing-comma
+]
+select = ["ALL"]
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[build-system]
+requires = [
+    "hatchling>=1,<2",
+]
+build-backend = "hatchling.build"
+
+# This configuration can be used to customize tox tests as well as other test frameworks like flake8 and mypy
+[tool.tox]
+min_version = "4.22"
+requires = [
+    "tox>=4.22",
+    "tox-uv",
+]
+env_list = [
+    "typing",
+    "py314",
+    "py313",
+    "py312",
+    "py311",
+    "py310",
+]
+
+[tool.tox.env_run_base]
+runner = "uv-venv-lock-runner"
+pass_env = [
+    "GITHUB_*",
+    "TAP_YANDEX_METRICA_*",
+]
+dependency_groups = [ "test" ]
+commands = [ [ "pytest", { replace = "posargs", default = [ "tests" ], extend = true } ] ]
+
+[tool.tox.env.typing]
+dependency_groups = [ "test", "typing" ]
+commands = [
+    [ "mypy", { replace = "posargs", default = [ "tap_yandex_metrica", "tests" ], extend = true } ],
+    [ "ty", "check", { replace = "posargs", default = [ "tap_yandex_metrica", "tests" ], extend = true } ],
+]
