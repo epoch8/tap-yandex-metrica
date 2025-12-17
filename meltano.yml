@@ -25,7 +25,7 @@ plugins:
 
     - name: auth_token
       kind: password
-      label: Password
+      label: Auth Token
       description: The password to use for authentication
       sensitive: true
 
@@ -40,6 +40,16 @@ plugins:
       label: Start Date
       description: Initial date to start extracting data from, YYYY-MM-DD
 
+    - name: end_date
+      kind: date_iso8601
+      label: End Date
+      description: The latest record date to sync, YYYY-MM-DD
+
+    - name: days_ago
+      kind: string
+      label: Days Ago
+      description: Amount of days to reload if no start & end dates provided, 2
+
     # TODO: Declare required settings here:
     # settings_group_validation:
     # - [username, password]
@@ -47,6 +57,11 @@ plugins:
     # TODO: Declare default configuration values here:
     # config:
     #   start_date: '2010-01-01T00:00:00Z'
+
+    select:
+      # - request_visits.*
+      - visits.*
+      # - hits.*
 
   loaders:
   - name: target-jsonl

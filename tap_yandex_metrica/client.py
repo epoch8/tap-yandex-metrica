@@ -46,7 +46,7 @@ class YandexMetricaStream(RESTStream):
     """YandexMetrica stream class."""
 
     # Update this value if necessary or override `parse_response`.
-    # records_jsonpath = "$[*]"
+    records_jsonpath = "$.parts[*]"
 
     # Update this value if necessary or override `get_new_paginator`.
     # next_page_token_jsonpath = "$.next_page"  # noqa: S105
@@ -55,7 +55,7 @@ class YandexMetricaStream(RESTStream):
 
     stream__source = None
     stream__fields = None
-    stream__request = None
+    stream__request_id = None
     stream__path = None
     stream__parts = None
     stream__part = None
@@ -142,36 +142,44 @@ class YandexMetricaStream(RESTStream):
         #     params["sort"] = "asc"
         #     params["order_by"] = self.replication_key
 
-        date1 = self.config.get("start_date") or datetime.datetime.now().date().__sub__(datetime.timedelta(days=1)).strftime(f"%Y-%m-%d")
-        date2 = self.config.get("start_date") or datetime.datetime.now().date().__sub__(datetime.timedelta(days=1)).strftime(f"%Y-%m-%d")
+        date1 = (
+            self.config.get("start_date")
+            or datetime.datetime.now().date().__sub__(datetime.timedelta(days=1+int(self.config["days_ago"]))).strftime(f"%Y-%m-%d")
+        )
+        date2 = (
+            self.config.get("end_date")
+            or datetime.datetime.now().date().__sub__(datetime.timedelta(days=1)).strftime(f"%Y-%m-%d")
+        )
 
-        if not self.stream__request:
-            self.stream__request = self.find_logrequest(date1, date2)
+        if not self.stream__request_id:
+            self.stream__request_id = self.find_logrequest(date1, date2)
 
-        # self.logger.warning(f"Request ID: {self.stream__request}")
+        # self.logger.warning(f"Request ID: {self.stream__request_id}")
 
-        if not self.stream__request:
-            # raise Exception(f"self.stream__request is None")
-            self.stream__request = self.create_logrequest(date1, date2)
+        if not self.stream__request_id:
+            # raise Exception(f"self.stream__request_id is None")
+            self.stream__request_id = self.create_logrequest(date1, date2)
 
-        self.logger.warning(f"Request ID: {self.stream__request}")
+        self.logger.info(f"Request ID: {self.stream__request_id}")
 
-        self.stream__parts = self.wait_logrequest(self.stream__request)
-        self.stream__part = self.stream__parts[0]
+        # self.stream__parts = self.wait_logrequest(self.stream__request_id)
+        # self.stream__part = self.stream__parts[0]
 
-        self.update_path()
+        self.wait_logrequest(self.stream__request_id)
 
-        request_params = {
-            "date1": date1,
-            "date2": date2,
-            "source": self.stream__source,
-            "fields": ",".join(self.stream__fields),
-        }
+        # self.update_path()
+
+        # request_params = {
+        #     "date1": date1,
+        #     "date2": date2,
+        #     "source": self.stream__source,
+        #     "fields": ",".join(self.stream__fields),
+        # }
         
         # self.logger.warning(f"self.path: {self.path}")
 
-        return request_params
-        # return {}
+        # return request_params
+        return {}
 
     # @override
     # def prepare_request_payload(
@@ -204,14 +212,53 @@ class YandexMetricaStream(RESTStream):
         Yields:
             Each record from the source.
         """
+        def find_request(requests):
+            # self.logger.warning(type(requests))
+            # self.logger.warning(requests)
+            for request in requests["requests"]:
+                
+                # self.logger.warning(request["counter_id"])
+                # self.logger.warning(request["request_id"])
+                # self.logger.warning(self.config["counter_id"])
+                # self.logger.warning(self.stream__request_id)
+
+                # self.logger.warning(type(request["counter_id"]))
+                # self.logger.warning(type(request["request_id"]))
+                # self.logger.warning(type(self.config["counter_id"]))
+                # self.logger.warning(type(self.stream__request_id))
+
+                if (
+                    str(request["counter_id"]) == str(self.config["counter_id"])
+                    and str(request["request_id"]) == str(self.stream__request_id)
+                ):
+                    return request
+
         # TODO: Parse response body and return a set of records.
+
+        # self.logger.warning(response.text)
+        request = find_request(response.json(parse_float=decimal.Decimal))
+        assert request is not None
+
+        # self.logger.warning(request)
+
         # yield from extract_jsonpath(
         #     self.records_jsonpath,
         #     input=response.json(parse_float=decimal.Decimal),
         # )
+        yield from extract_jsonpath(
+            self.records_jsonpath,
+            input=request,
+        )
 
-        # yield from pd.read_csv(io.BytesIO(response.content), sep="\t", dtype=str).itertuples(index=False)
-        raise Exception(f"parse_response")
+        # df = pd.read_csv(io.BytesIO(response.content), sep="\t", dtype=str)
+
+        # self.logger.warning(f"DF shape: {df.shape}")
+        # self.logger.warning(response.status_code)
+        # self.logger.warning(response.text)
+        # self.logger.warning(self.path)
+
+        # yield from df.itertuples(index=False)
+        # raise Exception(f"parse_response")
 
 
     @override
@@ -309,6 +356,8 @@ class YandexMetricaStream(RESTStream):
             parts = request.json().get("log_request", {}).get("parts")
             parts = [part["part_number"] for part in parts]
             return parts
+        
+        return status
 
 
     def wait_logrequest(self, request_id):
@@ -317,11 +366,11 @@ class YandexMetricaStream(RESTStream):
         while wait_attempt > 0:
             parts = self.check_logrequest(request_id)
 
-            if parts:
+            if isinstance(parts, list):
                 return parts
             
             wait_attempt = wait_attempt - 1
-            self.logger.info(f"Request ID {request_id} status is not \"processed\", waiting {WAIT_SECONDS} secods for retry. Attemps left: {wait_attempt}")
+            self.logger.info(f"Request ID {request_id} status is \"{parts}\", waiting {WAIT_SECONDS} secods for retry. Attemps left: {wait_attempt}")
             time.sleep(WAIT_SECONDS)
 
         raise Exception(f"Request ID {request_id} hasn't been processed during {N_WAIT_RETRIES} retries.")
@@ -336,40 +385,5 @@ class YandexMetricaStream(RESTStream):
         )
 
 
-    def update_path(self):
-        self.path = self.stream__path.format(requestId=self.stream__request, partNumber=self.stream__part)
-
-
-    # def request_decorator(self, func: RequestFunc) -> RequestFunc:
-    #     """Instantiate a decorator for handling request failures.
-
-    #     Uses a wait generator defined in `backoff_wait_generator` to
-    #     determine backoff behaviour. Try limit is defined in
-    #     `backoff_max_tries`, and will trigger the event defined in
-    #     `backoff_handler` before retrying. Developers may override one or
-    #     all of these methods to provide custom backoff or retry handling.
-
-    #     Args:
-    #         func: Function to decorate.
-
-    #     Returns:
-    #         A decorated method.
-    #     """
-    #     decorator: t.Callable = backoff.on_exception(
-    #         self.backoff_wait_generator,
-    #         (
-    #             ConnectionResetError,
-    #             RetriableAPIError,
-    #             requests.exceptions.Timeout,
-    #             requests.exceptions.ConnectionError,
-    #             requests.exceptions.ChunkedEncodingError,
-    #             requests.exceptions.ContentDecodingError,
-    #         ),
-    #         # target=print,
-    #         # print,
-    #         max_tries=self.backoff_max_tries,
-    #         on_backoff=self.backoff_handler,
-    #         jitter=self.backoff_jitter,
-    #         logger=self.logger,
-    #     )(func)
-    #     return decorator
+    # def update_path(self):
+    #     self.path = self.stream__path.format(requestId=self.stream__request_id, partNumber=self.stream__part)

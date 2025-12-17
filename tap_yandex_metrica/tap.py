@@ -81,6 +81,17 @@ class TapYandexMetrica(Tap):
             th.StringType(nullable=True),
             description="The earliest record date to sync: YYYY-MM-DD",
         ),
+        th.Property(
+            "end_date",
+            th.StringType(nullable=True),
+            description="The latest record date to sync: YYYY-MM-DD",
+        ),
+        th.Property(
+            "days_ago",
+            th.StringType(nullable=True),
+            default="2",
+            description="Amount of days to reload if no start & end dates provided: 2",
+        ),
     ).to_dict()
 
     @override
@@ -93,7 +104,9 @@ class TapYandexMetrica(Tap):
         return [
             # streams.GroupsStream(self),
             # streams.UsersStream(self),
+            streams.RequestVisitsStream(self),
             streams.VisitsStream(self),
+            streams.HitsStream(self),
         ]
 
 
