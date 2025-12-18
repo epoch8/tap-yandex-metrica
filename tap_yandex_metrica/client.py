@@ -46,9 +46,8 @@ class YandexMetricaStream(RESTStream):
     stream__source = None
     stream__fields = None
     stream__request_id = None
-    stream__path = None
-    stream__parts = None
-    stream__part = None
+    stream__last_part = None
+    is_request_cleaned = False
 
 
     @override
@@ -108,9 +107,7 @@ class YandexMetricaStream(RESTStream):
             self.stream__request_id = self.create_logrequest(date1, date2)
 
         self.logger.info(f"Request ID: {self.stream__request_id}")
-
-        self.wait_logrequest(self.stream__request_id)
-
+        self.stream__last_part = self.wait_logrequest(self.stream__request_id)[-1]
         return {}
 
 

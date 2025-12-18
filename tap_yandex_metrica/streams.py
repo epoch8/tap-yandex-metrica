@@ -26,6 +26,7 @@ class RequestVisitsStream(YandexMetricaStream):
         return {
             "requestId": str(self.stream__request_id),
             "part_number": str(record["part_number"]),
+            "last_part": str(self.stream__last_part),
         }
     
     stream__source = "visits"
@@ -144,6 +145,14 @@ class VisitsStream(RequestVisitsStream):
         row["request_id"] = context["requestId"]
         row["part_number"] = context["part_number"]
         row["extracted_at"] = f"{datetime.datetime.now()}"
+
+        if (
+            context["part_number"] == context["last_part"]
+            and self.is_request_cleaned == False
+        ):
+            self.clean_logrequest(context["requestId"])
+            self.is_request_cleaned = True
+
         return row
 
 
@@ -158,6 +167,7 @@ class RequestHitsStream(YandexMetricaStream):
         return {
             "requestId": str(self.stream__request_id),
             "part_number": str(record["part_number"]),
+            "last_part": str(self.stream__last_part),
         }
     
     stream__source = "hits"
@@ -292,4 +302,12 @@ class HitsStream(RequestHitsStream):
         row["request_id"] = context["requestId"]
         row["part_number"] = context["part_number"]
         row["extracted_at"] = f"{datetime.datetime.now()}"
+
+        if (
+            context["part_number"] == context["last_part"]
+            and self.is_request_cleaned == False
+        ):
+            self.clean_logrequest(context["requestId"])
+            self.is_request_cleaned = True
+
         return row
