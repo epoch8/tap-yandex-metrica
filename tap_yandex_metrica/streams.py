@@ -4,72 +4,15 @@ from __future__ import annotations
 
 import requests
 import pandas as pd
-from typing import TYPE_CHECKING, Any, ClassVar, Optional
+from typing import Any, Optional
 import io
+from collections.abc import Iterable
+import datetime
 
-if TYPE_CHECKING:
-    from collections.abc import Iterable
-
-    import requests
-    from singer_sdk.helpers.types import Auth, Context
-
+from singer_sdk.helpers.types import Auth, Context
 from singer_sdk import typing as th  # JSON Schema typing helpers
 
 from tap_yandex_metrica.client import YandexMetricaStream
-
-# TODO: - Override `UsersStream` and `GroupsStream` with your own stream definition.
-#       - Copy-paste as many times as needed to create multiple stream types.
-
-
-# class UsersStream(YandexMetricaStream):
-#     """Define custom stream."""
-
-#     name = "users"
-#     path = "/users"
-#     primary_keys = ("id",)
-#     replication_key = None
-#     # Optionally, you may also use `schema_filepath` in place of `schema`:
-#     # schema_filepath = SCHEMAS_DIR / "users.json"  # noqa: ERA001
-#     schema = th.PropertiesList(
-#         th.Property("name", th.StringType),
-#         th.Property(
-#             "id",
-#             th.StringType,
-#             description="The user's system ID",
-#         ),
-#         th.Property(
-#             "age",
-#             th.IntegerType,
-#             description="The user's age in years",
-#         ),
-#         th.Property(
-#             "email",
-#             th.StringType,
-#             description="The user's email address",
-#         ),
-#         th.Property("street", th.StringType),
-#         th.Property("city", th.StringType),
-#         th.Property(
-#             "state",
-#             th.StringType,
-#             description="State name in ISO 3166-2 format",
-#         ),
-#         th.Property("zip", th.StringType),
-#     ).to_dict()
-
-
-# class GroupsStream(YandexMetricaStream):
-#     """Define custom stream."""
-
-#     name = "groups"
-#     path = "/groups"
-#     primary_keys = ("id",)
-#     replication_key = "modified"
-#     schema = th.PropertiesList(
-#         th.Property("name", th.StringType),
-#         th.Property("id", th.StringType),
-#         th.Property("modified", th.DateTimeType),
-#     ).to_dict()
 
 
 class RequestVisitsStream(YandexMetricaStream):
@@ -77,13 +20,12 @@ class RequestVisitsStream(YandexMetricaStream):
 
     name = "request_visits"
     path = "logrequests"
-    # path = "logrequest/{requestId}"
 
     def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
         """Return a context dictionary for child streams."""
         return {
             "requestId": str(self.stream__request_id),
-            "partNumber": record["part_number"],
+            "part_number": str(record["part_number"]),
         }
     
     stream__source = "visits"
@@ -116,29 +58,6 @@ class RequestVisitsStream(YandexMetricaStream):
         th.Property("size", th.IntegerType),
     ).to_dict()
 
-    # def post_process(
-    #     self,
-    #     row: dict,
-    #     context: Context | None = None,
-    # ) -> dict | None:
-    #     """As needed, append or transform raw data to match expected structure.
-
-    #     Note: As of SDK v0.47.0, this method is automatically executed for all stream types.
-    #     You should not need to call this method directly in custom `get_records` implementations.
-
-    #     Args:
-    #         row: An individual record from the stream.
-    #         context: The stream context.
-
-    #     Returns:
-    #         The updated record dictionary, or ``None`` to skip the record.
-    #     """
-    #     # TODO: Delete this method if not needed.
-    #     row["part_number"] = f"{row['part_number']}"
-    #     row["size"] = f"{row['size']}"
-
-    #     return row
-
 
 class VisitsStream(RequestVisitsStream):
     """Define custom stream."""
@@ -146,36 +65,13 @@ class VisitsStream(RequestVisitsStream):
     name = "visits"
     parent_stream_type = RequestVisitsStream
     ignore_parent_replication_keys = True
-    path = "logrequest/{requestId}/part/{partNumber}/download"
+    path = "logrequest/{requestId}/part/{part_number}/download"
     primary_keys = ("ym_s_visitID",)
-    # replication_key = "modified"
-
-    stream__source = "visits"
-    stream__fields = [
-        "ym:s:dateTime",
-        "ym:s:date",
-        "ym:s:visitID",
-        "ym:s:clientID",
-        "ym:s:startURL",
-        "ym:s:referer",
-        "ym:s:pageViews",
-        "ym:s:isNewUser",
-        "ym:s:regionCountry",
-        "ym:s:regionCity",
-        "ym:s:lastsignTrafficSource",
-        "ym:s:lastTrafficSource",
-        "ym:s:lastSearchEngineRoot",
-        "ym:s:lastSearchEngine",
-        "ym:s:lastUTMSource",
-        "ym:s:lastUTMMedium",
-        "ym:s:lastUTMCampaign",
-        "ym:s:lastUTMTerm",
-        "ym:s:lastUTMContent",
-        "ym:s:lasthasGCLID",
-        "ym:s:lastGCLID",
-    ]
 
     schema = th.PropertiesList(
+        th.Property("request_id", th.StringType),
+        th.Property("part_number", th.StringType),
+        th.Property("extracted_at", th.StringType),
         th.Property("ym_s_dateTime", th.StringType),
         th.Property("ym_s_date", th.StringType),
         th.Property("ym_s_visitID", th.StringType),
@@ -213,8 +109,6 @@ class VisitsStream(RequestVisitsStream):
         Returns:
             A dictionary of URL query parameters.
         """
-        # self.logger.warning(context)
-        # self.logger.warning(self.path)
         return {}
     
     def parse_response(self, response: requests.Response) -> Iterable[dict]:
@@ -227,24 +121,45 @@ class VisitsStream(RequestVisitsStream):
             Each record from the source.
         """
         df = pd.read_csv(io.BytesIO(response.content), sep="\t", dtype=str)
+        df.columns = [column.replace(":", "_") for column in df.columns]
+        yield from df.to_dict(orient="records")
 
-        self.logger.info(f"DF shape: {df.shape}")
-        # self.logger.warning(response.status_code)
-        # self.logger.warning(response.text)
-        # self.logger.warning(self.path)
+    def post_process(
+        self,
+        row: dict,
+        context: Context | None = None,
+    ) -> dict | None:
+        """As needed, append or transform raw data to match expected structure.
 
-        yield from df.itertuples(index=False) # FIX ME!!! ==========================================================
-        # raise Exception(f"parse_response")
+        Note: As of SDK v0.47.0, this method is automatically executed for all stream types.
+        You should not need to call this method directly in custom `get_records` implementations.
+
+        Args:
+            row: An individual record from the stream.
+            context: The stream context.
+
+        Returns:
+            The updated record dictionary, or ``None`` to skip the record.
+        """
+        row["request_id"] = context["requestId"]
+        row["part_number"] = context["part_number"]
+        row["extracted_at"] = f"{datetime.datetime.now()}"
+        return row
 
 
-class HitsStream(YandexMetricaStream):
+class RequestHitsStream(YandexMetricaStream):
     """Define custom stream."""
 
-    name = "hits"
-    path = "logrequest/{requestId}/part/{partNumber}/download"
-    primary_keys = ("ym_pv_watchID",)
-    # replication_key = "modified"
+    name = "request_hits"
+    path = "logrequests"
 
+    def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
+        """Return a context dictionary for child streams."""
+        return {
+            "requestId": str(self.stream__request_id),
+            "part_number": str(record["part_number"]),
+        }
+    
     stream__source = "hits"
     stream__fields = [
         "ym:pv:dateTime",
@@ -277,8 +192,26 @@ class HitsStream(YandexMetricaStream):
         "ym:pv:notBounce",
         "ym:pv:ecommerce",
     ]
+    
+    schema = th.PropertiesList(
+        th.Property("part_number", th.IntegerType),
+        th.Property("size", th.IntegerType),
+    ).to_dict()
+
+
+class HitsStream(RequestHitsStream):
+    """Define custom stream."""
+
+    name = "hits"
+    parent_stream_type = RequestHitsStream
+    ignore_parent_replication_keys = True
+    path = "logrequest/{requestId}/part/{part_number}/download"
+    primary_keys = ("ym_pv_watchID",)
 
     schema = th.PropertiesList(
+        th.Property("request_id", th.StringType),
+        th.Property("part_number", th.StringType),
+        th.Property("extracted_at", th.StringType),
         th.Property("ym_pv_dateTime", th.StringType),
         th.Property("ym_pv_watchID", th.StringType),
         th.Property("ym_pv_pageViewID", th.StringType),
@@ -309,3 +242,54 @@ class HitsStream(YandexMetricaStream):
         th.Property("ym_pv_notBounce", th.StringType),
         th.Property("ym_pv_ecommerce", th.StringType),
     ).to_dict()
+
+    def get_url_params(
+        self,
+        context: Context | None,
+        next_page_token: Any | None,
+    ) -> dict[str, Any]:
+        """Return a dictionary of values to be used in URL parameterization.
+
+        Args:
+            context: The stream context.
+            next_page_token: The next page index or value.
+
+        Returns:
+            A dictionary of URL query parameters.
+        """
+        return {}
+    
+    def parse_response(self, response: requests.Response) -> Iterable[dict]:
+        """Parse the response and return an iterator of result records.
+
+        Args:
+            response: The HTTP ``requests.Response`` object.
+
+        Yields:
+            Each record from the source.
+        """
+        df = pd.read_csv(io.BytesIO(response.content), sep="\t", dtype=str)
+        df.columns = [column.replace(":", "_") for column in df.columns]
+        yield from df.to_dict(orient="records")
+
+    def post_process(
+        self,
+        row: dict,
+        context: Context | None = None,
+    ) -> dict | None:
+        """As needed, append or transform raw data to match expected structure.
+
+        Note: As of SDK v0.47.0, this method is automatically executed for all stream types.
+        You should not need to call this method directly in custom `get_records` implementations.
+
+        Args:
+            row: An individual record from the stream.
+            context: The stream context.
+
+        Returns:
+            The updated record dictionary, or ``None`` to skip the record.
+        """
+        row["request_id"] = context["requestId"]
+        row["part_number"] = context["part_number"]
+        row["extracted_at"] = f"{datetime.datetime.now()}"
+        return row

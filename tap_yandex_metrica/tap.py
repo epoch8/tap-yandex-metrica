@@ -21,50 +21,12 @@ class TapYandexMetrica(Tap):
 
     name = "tap-yandex-metrica"
 
-    # TODO: Update this section with the actual config values you expect:
     config_jsonschema = th.PropertiesList(
-        # th.Property(
-        #     "auth_token",
-        #     th.StringType(nullable=False),
-        #     required=True,
-        #     secret=True,  # Flag config as protected.
-        #     title="Auth Token",
-        #     description="The token to authenticate against the API service",
-        # ),
-        # th.Property(
-        #     "project_ids",
-        #     th.ArrayType(th.StringType(nullable=False), nullable=False),
-        #     required=True,
-        #     title="Project IDs",
-        #     description="Project IDs to replicate",
-        # ),
-        # th.Property(
-        #     "start_date",
-        #     th.DateTimeType(nullable=True),
-        #     description="The earliest record date to sync",
-        # ),
-        # th.Property(
-        #     "api_url",
-        #     th.StringType(nullable=False),
-        #     title="API URL",
-        #     default="https://api.mysample.com",
-        #     description="The url for the API service",
-        # ),
-        # th.Property(
-        #     "user_agent",
-        #     th.StringType(nullable=True),
-        #     description=(
-        #         "A custom User-Agent header to send with each request. Default is "
-        #         "'<tap_name>/<tap_version>'"
-        #     ),
-        # ),
-
-
         th.Property(
             "auth_token",
             th.StringType(nullable=False),
             required=True,
-            secret=True,  # Flag config as protected.
+            secret=True,
             title="Auth Token",
             description="The token to authenticate against the API service",
         ),
@@ -72,7 +34,7 @@ class TapYandexMetrica(Tap):
             "counter_id",
             th.StringType(nullable=False),
             required=True,
-            secret=True,  # Flag config as protected.
+            secret=True,
             title="counter_id",
             description="Yandex Metrica counter ID",
         ),
@@ -102,10 +64,9 @@ class TapYandexMetrica(Tap):
             A list of discovered streams.
         """
         return [
-            # streams.GroupsStream(self),
-            # streams.UsersStream(self),
             streams.RequestVisitsStream(self),
             streams.VisitsStream(self),
+            streams.RequestHitsStream(self),
             streams.HitsStream(self),
         ]
 

@@ -4,8 +4,11 @@ default_environment: test
 requires_meltano: ">=4.0"
 environments:
 - name: test
+
 plugins:
+
   extractors:
+
   - name: "tap-yandex-metrica"
     namespace: "tap_yandex_metrica"
     pip_url: -e .
@@ -17,11 +20,7 @@ plugins:
     - stream-maps
     - structured-logging
 
-    # TODO: Declare settings and their types here:
     settings:
-    # - name: username
-    #   label: Username
-    #   description: The username to use for authentication
 
     - name: auth_token
       kind: password
@@ -50,20 +49,78 @@ plugins:
       label: Days Ago
       description: Amount of days to reload if no start & end dates provided, 2
 
-    # TODO: Declare required settings here:
-    # settings_group_validation:
-    # - [username, password]
-
-    # TODO: Declare default configuration values here:
-    # config:
-    #   start_date: '2010-01-01T00:00:00Z'
-
     select:
-      # - request_visits.*
-      - visits.*
-      # - hits.*
+      - request_visits.part_number
+      - request_visits.size
+      - visits.request_id
+      - visits.part_number
+      - visits.extracted_at
+      - visits.ym_s_dateTime
+      - visits.ym_s_date
+      - visits.ym_s_visitID
+      - visits.ym_s_clientID
+      - visits.ym_s_startURL
+      - visits.ym_s_referer
+      - visits.ym_s_pageViews
+      - visits.ym_s_isNewUser
+      - visits.ym_s_regionCountry
+      - visits.ym_s_regionCity
+      - visits.ym_s_lastsignTrafficSource
+      - visits.ym_s_lastTrafficSource
+      - visits.ym_s_lastSearchEngineRoot
+      - visits.ym_s_lastSearchEngine
+      - visits.ym_s_lastUTMSource
+      - visits.ym_s_lastUTMMedium
+      - visits.ym_s_lastUTMCampaign
+      - visits.ym_s_lastUTMTerm
+      - visits.ym_s_lastUTMContent
+      - visits.ym_s_lasthasGCLID
+      - visits.ym_s_lastGCLID
+      - request_hits.part_number
+      - request_hits.size
+      - hits.request_id
+      - hits.part_number
+      - hits.extracted_at
+      - hits.ym_pv_dateTime
+      - hits.ym_pv_watchID
+      - hits.ym_pv_pageViewID
+      - hits.ym_pv_clientID
+      - hits.ym_pv_URL
+      - hits.ym_pv_referer
+      - hits.ym_pv_UTMSource
+      - hits.ym_pv_UTMMedium
+      - hits.ym_pv_UTMCampaign
+      - hits.ym_pv_UTMTerm
+      - hits.ym_pv_UTMContent
+      - hits.ym_pv_hasGCLID
+      - hits.ym_pv_GCLID
+      - hits.ym_pv_params
+      - hits.ym_pv_deviceCategory
+      - hits.ym_pv_operatingSystem
+      - hits.ym_pv_browser
+      - hits.ym_pv_browserMajorVersion
+      - hits.ym_pv_browserMinorVersion
+      - hits.ym_pv_regionCountry
+      - hits.ym_pv_regionCity
+      - hits.ym_pv_browserLanguage
+      - hits.ym_pv_screenWidth
+      - hits.ym_pv_screenHeight
+      - hits.ym_pv_isPageView
+      - hits.ym_pv_link
+      - hits.ym_pv_download
+      - hits.ym_pv_notBounce
+      - hits.ym_pv_ecommerce
+
 
   loaders:
+
   - name: target-jsonl
     variant: andyh1203
     pip_url: target-jsonl
+
+  - name: target-csv
+    variant: meltanolabs
+    pip_url: meltanolabs-target-csv
+    config:
+      destination_path: output/
+      batch_size_rows: 100000
