@@ -74,7 +74,7 @@ class VisitsStream(RequestVisitsStream):
     parent_stream_type = RequestVisitsStream
     ignore_parent_replication_keys = True
     path = "logrequest/{requestId}/part/{part_number}/download"
-    primary_keys = ("ym_s_visitID",)
+    primary_keys = ("ym_s_year", "ym_s_visitID",)
 
     schema = th.PropertiesList(
         th.Property("request_id", th.IntegerType),
@@ -101,6 +101,7 @@ class VisitsStream(RequestVisitsStream):
         th.Property("ym_s_lastUTMContent", th.StringType),
         th.Property("ym_s_lasthasGCLID", th.StringType),
         th.Property("ym_s_lastGCLID", th.StringType),
+        th.Property("ym_s_year", th.IntegerType),
     ).to_dict()
 
     def get_url_params(
@@ -129,7 +130,9 @@ class VisitsStream(RequestVisitsStream):
             Each record from the source.
         """
         df = pd.read_csv(io.BytesIO(response.content), sep="\t", dtype=str)
+        df = df.sort_values(by=["ym:s:visitID", "ym:s:dateTime"]).drop_duplicates(subset=["ym:s:visitID"], keep="first")
         df.columns = [column.replace(":", "_") for column in df.columns]
+        df["ym_s_year"] = df["ym_s_dateTime"].apply(lambda x: x.split("-")[0])
         yield from df.to_dict(orient="records")
 
     def post_process(
@@ -228,7 +231,7 @@ class HitsStream(RequestHitsStream):
     parent_stream_type = RequestHitsStream
     ignore_parent_replication_keys = True
     path = "logrequest/{requestId}/part/{part_number}/download"
-    primary_keys = ("ym_pv_watchID",)
+    primary_keys = ("ym_pv_year", "ym_pv_watchID",)
 
     schema = th.PropertiesList(
         th.Property("request_id", th.IntegerType),
@@ -263,6 +266,7 @@ class HitsStream(RequestHitsStream):
         th.Property("ym_pv_download", th.IntegerType),
         th.Property("ym_pv_notBounce", th.IntegerType),
         th.Property("ym_pv_ecommerce", th.StringType),
+        th.Property("ym_pv_year", th.IntegerType),
     ).to_dict()
 
     def get_url_params(
@@ -291,7 +295,9 @@ class HitsStream(RequestHitsStream):
             Each record from the source.
         """
         df = pd.read_csv(io.BytesIO(response.content), sep="\t", dtype=str)
+        df = df.sort_values(by=["ym:pv:watchID", "ym:pv:dateTime"]).drop_duplicates(subset=["ym:pv:watchID"], keep="first")
         df.columns = [column.replace(":", "_") for column in df.columns]
+        df["ym_pv_year"] = df["ym_pv_dateTime"].apply(lambda x: x.split("-")[0])
         yield from df.to_dict(orient="records")
 
     def post_process(

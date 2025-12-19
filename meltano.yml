@@ -76,6 +76,7 @@ plugins:
       - visits.ym_s_lastUTMContent
       - visits.ym_s_lasthasGCLID
       - visits.ym_s_lastGCLID
+      - visits.ym_s_year
       - request_hits.part_number
       - request_hits.size
       - hits.request_id
@@ -110,6 +111,7 @@ plugins:
       - hits.ym_pv_download
       - hits.ym_pv_notBounce
       - hits.ym_pv_ecommerce
+      - hits.ym_pv_year
 
 
   loaders:
