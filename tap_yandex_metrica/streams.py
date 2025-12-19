@@ -132,7 +132,7 @@ class VisitsStream(RequestVisitsStream):
         df = pd.read_csv(io.BytesIO(response.content), sep="\t", dtype=str)
         df = df.sort_values(by=["ym:s:visitID", "ym:s:dateTime"]).drop_duplicates(subset=["ym:s:visitID"], keep="first")
         df.columns = [column.replace(":", "_") for column in df.columns]
-        df["ym_s_year"] = df["ym_s_dateTime"].apply(lambda x: x.split("-")[0])
+        df["ym_s_year"] = df["ym_s_dateTime"].apply(lambda x: try_int(x.split("-")[0]))
         yield from df.to_dict(orient="records")
 
     def post_process(
@@ -297,7 +297,7 @@ class HitsStream(RequestHitsStream):
         df = pd.read_csv(io.BytesIO(response.content), sep="\t", dtype=str)
         df = df.sort_values(by=["ym:pv:watchID", "ym:pv:dateTime"]).drop_duplicates(subset=["ym:pv:watchID"], keep="first")
         df.columns = [column.replace(":", "_") for column in df.columns]
-        df["ym_pv_year"] = df["ym_pv_dateTime"].apply(lambda x: x.split("-")[0])
+        df["ym_pv_year"] = df["ym_pv_dateTime"].apply(lambda x: try_int(x.split("-")[0]))
         yield from df.to_dict(orient="records")
 
     def post_process(
