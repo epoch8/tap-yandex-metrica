@@ -15,6 +15,13 @@ from singer_sdk import typing as th  # JSON Schema typing helpers
 from tap_yandex_metrica.client import YandexMetricaStream
 
 
+def try_int(value):
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
 class RequestVisitsStream(YandexMetricaStream):
     """Define custom stream."""
 
@@ -70,17 +77,17 @@ class VisitsStream(RequestVisitsStream):
     primary_keys = ("ym_s_visitID",)
 
     schema = th.PropertiesList(
-        th.Property("request_id", th.StringType),
-        th.Property("part_number", th.StringType),
-        th.Property("extracted_at", th.StringType),
-        th.Property("ym_s_dateTime", th.StringType),
-        th.Property("ym_s_date", th.StringType),
-        th.Property("ym_s_visitID", th.StringType),
-        th.Property("ym_s_clientID", th.StringType),
+        th.Property("request_id", th.IntegerType),
+        th.Property("part_number", th.IntegerType),
+        th.Property("extracted_at", th.DateTimeType),
+        th.Property("ym_s_dateTime", th.DateTimeType),
+        th.Property("ym_s_date", th.DateType),
+        th.Property("ym_s_visitID", th.IntegerType),
+        th.Property("ym_s_clientID", th.IntegerType),
         th.Property("ym_s_startURL", th.StringType),
         th.Property("ym_s_referer", th.StringType),
-        th.Property("ym_s_pageViews", th.StringType),
-        th.Property("ym_s_isNewUser", th.StringType),
+        th.Property("ym_s_pageViews", th.IntegerType),
+        th.Property("ym_s_isNewUser", th.IntegerType),
         th.Property("ym_s_regionCountry", th.StringType),
         th.Property("ym_s_regionCity", th.StringType),
         th.Property("ym_s_lastsignTrafficSource", th.StringType),
@@ -142,9 +149,14 @@ class VisitsStream(RequestVisitsStream):
         Returns:
             The updated record dictionary, or ``None`` to skip the record.
         """
-        row["request_id"] = context["requestId"]
-        row["part_number"] = context["part_number"]
+        row["request_id"] = int(context["requestId"])
+        row["part_number"] = int(context["part_number"])
         row["extracted_at"] = f"{datetime.datetime.now()}"
+
+        row["ym_s_visitID"] = try_int(row["ym_s_visitID"])
+        row["ym_s_clientID"] = try_int(row["ym_s_clientID"])
+        row["ym_s_pageViews"] = try_int(row["ym_s_pageViews"])
+        row["ym_s_isNewUser"] = try_int(row["ym_s_isNewUser"])
 
         if (
             context["part_number"] == context["last_part"]
@@ -219,13 +231,13 @@ class HitsStream(RequestHitsStream):
     primary_keys = ("ym_pv_watchID",)
 
     schema = th.PropertiesList(
-        th.Property("request_id", th.StringType),
-        th.Property("part_number", th.StringType),
-        th.Property("extracted_at", th.StringType),
-        th.Property("ym_pv_dateTime", th.StringType),
-        th.Property("ym_pv_watchID", th.StringType),
-        th.Property("ym_pv_pageViewID", th.StringType),
-        th.Property("ym_pv_clientID", th.StringType),
+        th.Property("request_id", th.IntegerType),
+        th.Property("part_number", th.IntegerType),
+        th.Property("extracted_at", th.DateTimeType),
+        th.Property("ym_pv_dateTime", th.DateTimeType),
+        th.Property("ym_pv_watchID", th.IntegerType),
+        th.Property("ym_pv_pageViewID", th.IntegerType),
+        th.Property("ym_pv_clientID", th.IntegerType),
         th.Property("ym_pv_URL", th.StringType),
         th.Property("ym_pv_referer", th.StringType),
         th.Property("ym_pv_UTMSource", th.StringType),
@@ -233,23 +245,23 @@ class HitsStream(RequestHitsStream):
         th.Property("ym_pv_UTMCampaign", th.StringType),
         th.Property("ym_pv_UTMTerm", th.StringType),
         th.Property("ym_pv_UTMContent", th.StringType),
-        th.Property("ym_pv_hasGCLID", th.StringType),
+        th.Property("ym_pv_hasGCLID", th.IntegerType),
         th.Property("ym_pv_GCLID", th.StringType),
         th.Property("ym_pv_params", th.StringType),
         th.Property("ym_pv_deviceCategory", th.StringType),
         th.Property("ym_pv_operatingSystem", th.StringType),
         th.Property("ym_pv_browser", th.StringType),
-        th.Property("ym_pv_browserMajorVersion", th.StringType),
-        th.Property("ym_pv_browserMinorVersion", th.StringType),
+        th.Property("ym_pv_browserMajorVersion", th.IntegerType),
+        th.Property("ym_pv_browserMinorVersion", th.IntegerType),
         th.Property("ym_pv_regionCountry", th.StringType),
         th.Property("ym_pv_regionCity", th.StringType),
         th.Property("ym_pv_browserLanguage", th.StringType),
-        th.Property("ym_pv_screenWidth", th.StringType),
-        th.Property("ym_pv_screenHeight", th.StringType),
-        th.Property("ym_pv_isPageView", th.StringType),
-        th.Property("ym_pv_link", th.StringType),
-        th.Property("ym_pv_download", th.StringType),
-        th.Property("ym_pv_notBounce", th.StringType),
+        th.Property("ym_pv_screenWidth", th.IntegerType),
+        th.Property("ym_pv_screenHeight", th.IntegerType),
+        th.Property("ym_pv_isPageView", th.IntegerType),
+        th.Property("ym_pv_link", th.IntegerType),
+        th.Property("ym_pv_download", th.IntegerType),
+        th.Property("ym_pv_notBounce", th.IntegerType),
         th.Property("ym_pv_ecommerce", th.StringType),
     ).to_dict()
 
@@ -299,9 +311,22 @@ class HitsStream(RequestHitsStream):
         Returns:
             The updated record dictionary, or ``None`` to skip the record.
         """
-        row["request_id"] = context["requestId"]
-        row["part_number"] = context["part_number"]
+        row["request_id"] = int(context["requestId"])
+        row["part_number"] = int(context["part_number"])
         row["extracted_at"] = f"{datetime.datetime.now()}"
+
+        row["ym_pv_watchID"] = try_int(row["ym_pv_watchID"])
+        row["ym_pv_pageViewID"] = try_int(row["ym_pv_pageViewID"])
+        row["ym_pv_clientID"] = try_int(row["ym_pv_clientID"])
+        row["ym_pv_hasGCLID"] = try_int(row["ym_pv_hasGCLID"])
+        row["ym_pv_browserMajorVersion"] = try_int(row["ym_pv_browserMajorVersion"])
+        row["ym_pv_browserMinorVersion"] = try_int(row["ym_pv_browserMinorVersion"])
+        row["ym_pv_screenWidth"] = try_int(row["ym_pv_screenWidth"])
+        row["ym_pv_screenHeight"] = try_int(row["ym_pv_screenHeight"])
+        row["ym_pv_isPageView"] = try_int(row["ym_pv_isPageView"])
+        row["ym_pv_link"] = try_int(row["ym_pv_link"])
+        row["ym_pv_download"] = try_int(row["ym_pv_download"])
+        row["ym_pv_notBounce"] = try_int(row["ym_pv_notBounce"])
 
         if (
             context["part_number"] == context["last_part"]
